@@ -159,26 +159,30 @@ if (platform.isWindows) {
 } else {
   // On Linux, search for libcef.so and its versioned variants (e.g., libcef.so.123)
   await searchCef(await platform.searchFiles('libcef.*\\.so', true), 'CEF')
+  // Also search for .dll files on Linux (for Wine or cross-platform scenarios)
+  await searchCef(await platform.searchFiles('libcef'), 'CEF')
 }
 
 // Search for Node.js native modules (Electron, Mini Blink, etc.)
-const nodePattern = platform.isWindows ? 'node(.*?)\\.dll' : 'node.*\\.so'
-for (const file of (await platform.searchFiles(nodePattern, true)).replace(/\r/g, '').split('\n')) {
-  if (!file.trim()) continue
-  if (file.includes('$RECYCLE.BIN') || file.includes('OneDrive') ||
-      file.includes('/.Trash') || file.includes('/.cache')) continue
-  if (await fs.stat(file).then(it => it.isDirectory(), () => true)) continue
-  const dir = path.dirname(file)
-  const executables = await platform.getExecutables(dir)
-  for (const it of executables) {
-    const fileName = path.join(dir, it)
-    const data = await fs.readFile(fileName)
-    let type
-    if (data.includes(MINI_ELECTRON)) type = 'Mini Electron'
-    else if (data.includes(MINI_BLINK)) type = 'Mini Blink'
-    else continue
-    await addApp(fileName, type)
-    break
+const nodePatterns = platform.isWindows ? ['node(.*?)\\.dll'] : ['node.*\\.so', 'node(.*?)\\.dll']
+for (const nodePattern of nodePatterns) {
+  for (const file of (await platform.searchFiles(nodePattern, true)).replace(/\r/g, '').split('\n')) {
+    if (!file.trim()) continue
+    if (file.includes('$RECYCLE.BIN') || file.includes('OneDrive') ||
+        file.includes('/.Trash') || file.includes('/.cache')) continue
+    if (await fs.stat(file).then(it => it.isDirectory(), () => true)) continue
+    const dir = path.dirname(file)
+    const executables = await platform.getExecutables(dir)
+    for (const it of executables) {
+      const fileName = path.join(dir, it)
+      const data = await fs.readFile(fileName)
+      let type
+      if (data.includes(MINI_ELECTRON)) type = 'Mini Electron'
+      else if (data.includes(MINI_BLINK)) type = 'Mini Blink'
+      else continue
+      await addApp(fileName, type)
+      break
+    }
   }
 }
 
