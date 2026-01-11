@@ -1,17 +1,13 @@
-const { exec } = require('child_process')
 const { shell, ipcRenderer } = require('electron')
 const fs = require('original-fs').promises
 const path = require('path')
+const platform = require('./platform')
 
 document.getElementsByTagName('a')[0].onclick = () => shell.openExternal('https://github.com/ShirasawaSama/CefDetectorX')
 
 let cnt = 0
 let totalSize = 0
 const sizes = ['B', 'KB', 'MB', 'GB', 'TB']
-const execAsync = cmd => new Promise(resolve => exec(cmd, { maxBuffer: 1000 * 1000 * 10, windowsHide: true }, (err, stdout, stderr) => {
-  if (err || stderr) console.error(err || stderr)
-  resolve(stdout || '')
-}))
 const exists = file => fs.stat(file).then(it => it.isFile(), () => false)
 const dirSize = async (dir, cache = { }, deep = 0) => {
   if (deep > 10) return
@@ -89,27 +85,27 @@ const addApp = async (file, type, isDir = false) => {
   titleElm.innerText = `这台电脑上总共有 ${++cnt} 个 Chromium 内核的应用 (${prettySize(totalSize)})`
 }
 
-const processes = { }
-try {
-  (await execAsync('wmic process get ExecutablePath')).replace(/\r/g, '').replace(/ +\n/g, '\n').split('\n').forEach(it => (processes[it] = 1))
-} catch (e) {
-  console.error(e)
-}
+const processes = await platform.getRunningProcesses()
 
 const search = async (file) => {
   console.log('Searching:', file)
   try {
-    let f = path.join(file, 'msedge.exe')
+    // Check for Edge
+    let f = path.join(file, platform.isWindows ? 'msedge.exe' : 'microsoft-edge')
     if (await exists(f)) {
       await addApp(f, 'Edge')
       return [true]
     }
-    if (await exists(path.join(file, 'chrome_pwa_launcher.exe')) && await exists(f = path.join(file, '../chrome.exe'))) {
+    // Check for Chrome
+    const chromeLauncher = platform.isWindows ? 'chrome_pwa_launcher.exe' : 'chrome_pwa_launcher'
+    const chromeExe = platform.isWindows ? '../chrome.exe' : '../chrome'
+    if (await exists(path.join(file, chromeLauncher)) && await exists(f = path.join(file, chromeExe))) {
       await addApp(f, 'Chrome')
       return [true]
     }
     let firstExe
-    for (const it of (await fs.readdir(file)).filter(it => it.endsWith('.exe'))) {
+    const executables = await platform.getExecutables(file)
+    for (const it of executables) {
       const fileName = path.join(file, it)
       const data = await fs.readFile(fileName)
       const fileNameLowerCase = it.toLowerCase()
@@ -135,7 +131,11 @@ const search = async (file) => {
 const cache2 = { }
 const searchCef = async (stdout, defaultType = 'Unknown') => {
   for (const file of stdout.replace(/\r/g, '').split('\n')) {
-    if (file.includes('$RECYCLE.BIN') || file.includes('OneDrive') || /\.log$/i.test(file)) continue
+    if (!file.trim()) continue
+    // Skip recycle bin and temp locations (cross-platform)
+    if (file.includes('$RECYCLE.BIN') || file.includes('OneDrive') || 
+        file.includes('/.Trash') || file.includes('/.cache') || 
+        /\.log$/i.test(file)) continue
     const dir = path.dirname(file)
     if (cache2[dir]) continue
     cache2[dir] = true
@@ -151,13 +151,21 @@ const searchCef = async (stdout, defaultType = 'Unknown') => {
     }
   }
 }
-await searchCef(await execAsync('es.exe -regex _100_(.+?)\\.pak$'))
-await searchCef(await execAsync('es.exe -s libcef'), 'CEF')
+// Search for Chrome Resource Localization files (cross-platform)
+await searchCef(await platform.searchFiles('_100_(.+?)\\.pak$', true))
+// Search for libcef library files
+await searchCef(await platform.searchFiles(platform.isWindows ? 'libcef' : 'libcef.so'), 'CEF')
 
-for (const file of (await execAsync('es.exe -regex node(.*?)\\.dll')).replace(/\r/g, '').split('\n')) {
-  if (file.includes('$RECYCLE.BIN') || file.includes('OneDrive') || await fs.stat(file).then(it => it.isDirectory(), () => true)) continue
+// Search for Node.js native modules (Electron, Mini Blink, etc.)
+const nodePattern = platform.isWindows ? 'node(.*?)\\.dll' : 'node.*\\.so'
+for (const file of (await platform.searchFiles(nodePattern, true)).replace(/\r/g, '').split('\n')) {
+  if (!file.trim()) continue
+  if (file.includes('$RECYCLE.BIN') || file.includes('OneDrive') || 
+      file.includes('/.Trash') || file.includes('/.cache')) continue
+  if (await fs.stat(file).then(it => it.isDirectory(), () => true)) continue
   const dir = path.dirname(file)
-  for (const it of (await fs.readdir(dir)).filter(it => it.endsWith('.exe'))) {
+  const executables = await platform.getExecutables(dir)
+  for (const it of executables) {
     const fileName = path.join(dir, it)
     const data = await fs.readFile(fileName)
     let type
@@ -170,5 +178,11 @@ for (const file of (await execAsync('es.exe -regex node(.*?)\\.dll')).replace(/\
 }
 
 if (nodes.length) nodes.sort(([a], [b]) => b - a).forEach(([_, elm], i) => (elm.style.order = i.toString()))
-else titleElm.innerText = '这台电脑上没有 Chromium 内核的应用 (也有可能是你没装 Everything)'
+else {
+  if (platform.isWindows) {
+    titleElm.innerText = '这台电脑上没有 Chromium 内核的应用 (也有可能是你没装 Everything)'
+  } else {
+    titleElm.innerText = '这台电脑上没有 Chromium 内核的应用 (尝试运行 sudo updatedb 来更新文件索引)'
+  }
+}
 titleElm.className = 'running'

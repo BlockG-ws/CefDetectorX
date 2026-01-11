@@ -1,7 +1,7 @@
 {
   "name": "cef-detector-x",
   "version": "0.1.0",
-  "description": "Check how many CEFs are on your Windows.",
+  "description": "Check how many CEFs are on your Windows or Linux.",
   "private": true,
   "scripts": {
     "start": "electron src",
@@ -14,7 +14,9 @@
   "keywords": [
     "CEF",
     "electron",
-    "libcef"
+    "libcef",
+    "linux",
+    "windows"
   ],
   "author": "Shirasawa",
   "license": "MIT",
