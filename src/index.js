@@ -153,8 +153,13 @@ const searchCef = async (stdout, defaultType = 'Unknown') => {
 }
 // Search for Chrome Resource Localization files (cross-platform)
 await searchCef(await platform.searchFiles('_100_(.+?)\\.pak$', true))
-// Search for libcef library files
-await searchCef(await platform.searchFiles(platform.isWindows ? 'libcef' : 'libcef.so'), 'CEF')
+// Search for libcef library files (flexible pattern to catch all versions)
+if (platform.isWindows) {
+  await searchCef(await platform.searchFiles('libcef'), 'CEF')
+} else {
+  // On Linux, search for libcef.so and its versioned variants (e.g., libcef.so.123)
+  await searchCef(await platform.searchFiles('libcef.*\\.so', true), 'CEF')
+}
 
 // Search for Node.js native modules (Electron, Mini Blink, etc.)
 const nodePattern = platform.isWindows ? 'node(.*?)\\.dll' : 'node.*\\.so'
