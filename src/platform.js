@@ -78,7 +78,7 @@ async function searchFiles (pattern, isRegex = false) {
     const homeDir = os.homedir()
     // Include standard directories, home directory, and PATH directories
     const pathDirs = getPathDirectories()
-    const searchDirs = ['/usr/lib', '/usr/local', '/opt', '/snap', homeDir, ...pathDirs]
+    const searchDirs = ['/usr/lib', '/usr/local', '/opt', '/snap', '/nix', homeDir, ...pathDirs]
 
     if (tool === 'fd' || tool === 'fdfind') {
       // Use fd for faster searches with --hidden flag to include hidden files
