@@ -3,7 +3,7 @@ const fs = require('original-fs').promises
 const path = require('path')
 const platform = require('./platform')
 
-document.getElementsByTagName('a')[0].onclick = () => shell.openExternal('https://github.com/ShirasawaSama/CefDetectorX')
+document.getElementsByTagName('a')[0].onclick = () => shell.openExternal('https://github.com/BlockG-ws/CefDetectorX')
 
 let cnt = 0
 let totalSize = 0
