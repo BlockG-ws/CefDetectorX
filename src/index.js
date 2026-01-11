@@ -160,11 +160,11 @@ if (platform.isWindows) {
   // On Linux, search for libcef.so and its versioned variants (e.g., libcef.so.123)
   await searchCef(await platform.searchFiles('libcef.*\\.so', true), 'CEF')
   // Also search for .dll files on Linux (for Wine or cross-platform scenarios)
-  await searchCef(await platform.searchFiles('libcef'), 'CEF')
+  await searchCef(await platform.searchFiles('libcef.*\\.dll', true), 'CEF')
 }
 
 // Search for Node.js native modules (Electron, Mini Blink, etc.)
-const nodePatterns = platform.isWindows ? ['node(.*?)\\.dll'] : ['node.*\\.so', 'node(.*?)\\.dll']
+const nodePatterns = platform.isWindows ? ['node.*\\.dll'] : ['node.*\\.so', 'node.*\\.dll']
 for (const nodePattern of nodePatterns) {
   for (const file of (await platform.searchFiles(nodePattern, true)).replace(/\r/g, '').split('\n')) {
     if (!file.trim()) continue
