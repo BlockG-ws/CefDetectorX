@@ -85,7 +85,7 @@ async function searchFiles (pattern, isRegex = false) {
       if (isRegex) {
         // For regex patterns, use fd with regex support
         const promises = searchDirs.map((dir) => {
-          const maxDepth = dir === homeDir ? '--max-depth 6' : '' // Limit depth in home directory
+          const maxDepth = dir === homeDir ? '--max-depth 21' : '' // Limit depth in home directory
           return execAsync(`${tool} ${maxDepth} --hidden --type f --regex ${escapeShellArg(pattern)} ${escapeShellArg(dir)} 2>/dev/null || true`)
         })
         const results = await Promise.all(promises)
@@ -96,7 +96,7 @@ async function searchFiles (pattern, isRegex = false) {
         if (!result.trim()) {
           // Fallback to fd with --hidden flag
           const promises = searchDirs.map((dir) => {
-            const maxDepth = dir === homeDir ? '--max-depth 6' : ''
+            const maxDepth = dir === homeDir ? '--max-depth 21' : ''
             return execAsync(`${tool} ${maxDepth} --hidden --type f ${escapeShellArg(pattern)} ${escapeShellArg(dir)} 2>/dev/null || true`)
           })
           const results = await Promise.all(promises)
@@ -109,7 +109,7 @@ async function searchFiles (pattern, isRegex = false) {
       if (isRegex) {
         // For regex patterns, use find with regex in common app directories
         const promises = searchDirs.map((dir) => {
-          const maxDepthArg = dir === homeDir ? '-maxdepth 6' : '' // Limit depth in home directory
+          const maxDepthArg = dir === homeDir ? '-maxdepth 21' : '' // Limit depth in home directory
           return execAsync(`find ${escapeShellArg(dir)} ${maxDepthArg} -type f -regextype posix-extended -regex ${escapeShellArg('.*' + pattern)} 2>/dev/null || true`)
         })
         const results = await Promise.all(promises)
@@ -120,7 +120,7 @@ async function searchFiles (pattern, isRegex = false) {
         if (!result.trim()) {
           // Fallback to find if locate doesn't work or returns nothing
           const promises = searchDirs.map((dir) => {
-            const maxDepthArg = dir === homeDir ? '-maxdepth 6' : ''
+            const maxDepthArg = dir === homeDir ? '-maxdepth 21' : ''
             return execAsync(`find ${escapeShellArg(dir)} ${maxDepthArg} -type f -name ${escapeShellArg('*' + pattern + '*')} 2>/dev/null || true`)
           })
           const results = await Promise.all(promises)
