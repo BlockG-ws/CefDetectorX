@@ -133,8 +133,8 @@ const searchCef = async (stdout, defaultType = 'Unknown') => {
   for (const file of stdout.replace(/\r/g, '').split('\n')) {
     if (!file.trim()) continue
     // Skip recycle bin and temp locations (cross-platform)
-    if (file.includes('$RECYCLE.BIN') || file.includes('OneDrive') || 
-        file.includes('/.Trash') || file.includes('/.cache') || 
+    if (file.includes('$RECYCLE.BIN') || file.includes('OneDrive') ||
+        file.includes('/.Trash') || file.includes('/.cache') ||
         /\.log$/i.test(file)) continue
     const dir = path.dirname(file)
     if (cache2[dir]) continue
@@ -160,7 +160,7 @@ await searchCef(await platform.searchFiles(platform.isWindows ? 'libcef' : 'libc
 const nodePattern = platform.isWindows ? 'node(.*?)\\.dll' : 'node.*\\.so'
 for (const file of (await platform.searchFiles(nodePattern, true)).replace(/\r/g, '').split('\n')) {
   if (!file.trim()) continue
-  if (file.includes('$RECYCLE.BIN') || file.includes('OneDrive') || 
+  if (file.includes('$RECYCLE.BIN') || file.includes('OneDrive') ||
       file.includes('/.Trash') || file.includes('/.cache')) continue
   if (await fs.stat(file).then(it => it.isDirectory(), () => true)) continue
   const dir = path.dirname(file)
@@ -182,7 +182,7 @@ else {
   if (platform.isWindows) {
     titleElm.innerText = '这台电脑上没有 Chromium 内核的应用 (也有可能是你没装 Everything)'
   } else {
-    titleElm.innerText = '这台电脑上没有 Chromium 内核的应用 (尝试运行 sudo updatedb 来更新文件索引)'
+    titleElm.innerText = '这台电脑上没有 Chromium 内核的应用 (尝试安装 fd 和运行 sudo updatedb 来提高搜索效果)'
   }
 }
 titleElm.className = 'running'

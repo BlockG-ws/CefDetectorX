@@ -37,8 +37,21 @@ chmod +x CefDetectorX
 
 **建议先运行 `sudo updatedb` 来更新文件索引以获得更快的搜索速度 (使用 mlocate/plocate).**
 
+**推荐安装 [fd](https://github.com/sharkdp/fd) 来获得更快的文件搜索速度:**
+
+```bash
+# Debian/Ubuntu
+sudo apt install fd-find
+
+# Arch Linux
+sudo pacman -S fd
+
+# Fedora
+sudo dnf install fd-find
+```
+
 > **Note**
-> Linux 版本使用 `find` 和 `locate` 命令进行文件搜索. 如果系统没有安装 `mlocate` 或 `plocate`, 搜索可能会比较慢.
+> Linux 版本会自动检测并使用 `fd` (如果已安装) 或回退到 `find` 命令进行文件搜索. 如果系统没有安装 `mlocate` 或 `plocate`, 首次搜索可能会比较慢.
 
 
 ## 特性

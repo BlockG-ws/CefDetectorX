@@ -1,5 +1,11 @@
 const { exec } = require('child_process')
-const fs = require('original-fs').promises
+const fs = (() => {
+  try {
+    return require('original-fs').promises
+  } catch (e) {
+    return require('fs').promises
+  }
+})()
 const path = require('path')
 
 const isWindows = process.platform === 'win32'
@@ -9,6 +15,23 @@ const execAsync = cmd => new Promise(resolve => exec(cmd, { maxBuffer: 1000 * 10
   if (err || stderr) console.error(err || stderr)
   resolve(stdout || '')
 }))
+
+// Detect which search tool is available on Linux
+let linuxSearchTool = null
+const detectLinuxSearchTool = async () => {
+  if (linuxSearchTool !== null) return linuxSearchTool
+  // Try fd first (it might be named 'fd' or 'fdfind' on Debian/Ubuntu)
+  const result = await execAsync('command -v fd 2>/dev/null || command -v fdfind 2>/dev/null || true')
+  if (result.trim()) {
+    linuxSearchTool = result.trim().includes('fdfind') ? 'fdfind' : 'fd'
+    console.log('Using search tool:', linuxSearchTool)
+    return linuxSearchTool
+  }
+  // Fallback to find
+  linuxSearchTool = 'find'
+  console.log('Using search tool: find (consider installing fd for faster searches)')
+  return linuxSearchTool
+}
 
 /**
  * Search for files matching a pattern
@@ -23,31 +46,60 @@ async function searchFiles (pattern, isRegex = false) {
     const cmd = isRegex ? `"${esPath}" -regex ${pattern}` : `"${esPath}" -s ${pattern}`
     return execAsync(cmd)
   } else if (isLinux) {
-    // Use find and locate on Linux
-    if (isRegex) {
-      // For regex patterns, use find with regex
-      // Convert Windows-style regex to POSIX if needed
-      const searchDirs = ['/usr', '/opt', '/home', '/var']
-      const results = await Promise.all(
-        searchDirs.map(dir =>
+    const tool = await detectLinuxSearchTool()
+
+    if (tool === 'fd' || tool === 'fdfind') {
+      // Use fd for faster searches
+      const searchDirs = ['/usr/lib', '/usr/local', '/opt', '/snap', '$HOME']
+      if (isRegex) {
+        // For regex patterns, use fd with regex support
+        const promises = searchDirs.map((dir, idx) => {
+          const maxDepth = idx === searchDirs.length - 1 ? '--max-depth 6' : '' // Limit depth in home
+          return execAsync(`${tool} ${maxDepth} --type f --regex '${pattern}' ${dir} 2>/dev/null || true`)
+        })
+        const results = await Promise.all(promises)
+        return results.join('\n')
+      } else {
+        // For simple string search, try locate first (faster), fallback to fd
+        let result = await execAsync(`locate "${pattern}" 2>/dev/null | head -n 1000 || true`)
+        if (!result.trim()) {
+          // Fallback to fd
+          const promises = searchDirs.map((dir, idx) => {
+            const maxDepth = idx === searchDirs.length - 1 ? '--max-depth 6' : ''
+            return execAsync(`${tool} ${maxDepth} --type f '${pattern}' ${dir} 2>/dev/null || true`)
+          })
+          const results = await Promise.all(promises)
+          result = results.join('\n')
+        }
+        return result
+      }
+    } else {
+      // Fallback to find
+      if (isRegex) {
+        // For regex patterns, use find with regex in common app directories
+        const searchDirs = ['/usr/lib', '/usr/local', '/opt', '/snap']
+        const promises = searchDirs.map(dir =>
           execAsync(`find ${dir} -type f -regextype posix-extended -regex '.*${pattern}' 2>/dev/null || true`)
         )
-      )
-      return results.join('\n')
-    } else {
-      // For simple string search, try locate first (faster), fallback to find
-      let result = await execAsync(`locate "${pattern}" 2>/dev/null || true`)
-      if (!result.trim()) {
-        // Fallback to find if locate doesn't work or returns nothing
-        const searchDirs = ['/usr', '/opt', '/home', '/var']
-        const results = await Promise.all(
-          searchDirs.map(dir =>
+        // Also search in home directory but limit depth
+        promises.push(execAsync(`find $HOME -maxdepth 6 -type f -regextype posix-extended -regex '.*${pattern}' 2>/dev/null || true`))
+        const results = await Promise.all(promises)
+        return results.join('\n')
+      } else {
+        // For simple string search, try locate first (faster), fallback to find
+        let result = await execAsync(`locate "${pattern}" 2>/dev/null | head -n 1000 || true`)
+        if (!result.trim()) {
+          // Fallback to find if locate doesn't work or returns nothing
+          const searchDirs = ['/usr/lib', '/usr/local', '/opt', '/snap']
+          const promises = searchDirs.map(dir =>
             execAsync(`find ${dir} -type f -name "*${pattern}*" 2>/dev/null || true`)
           )
-        )
-        result = results.join('\n')
+          promises.push(execAsync(`find $HOME -maxdepth 6 -type f -name "*${pattern}*" 2>/dev/null || true`))
+          const results = await Promise.all(promises)
+          result = results.join('\n')
+        }
+        return result
       }
-      return result
     }
   }
   return ''
@@ -59,7 +111,7 @@ async function searchFiles (pattern, isRegex = false) {
  */
 async function getRunningProcesses () {
   const processes = {}
-  
+
   if (isWindows) {
     // Use wmic on Windows
     try {
@@ -88,7 +140,7 @@ async function getRunningProcesses () {
       console.error(e)
     }
   }
-  
+
   return processes
 }
 
@@ -109,7 +161,7 @@ async function isExecutable (filePath) {
   try {
     const stats = await fs.stat(filePath)
     if (!stats.isFile()) return false
-    
+
     if (isWindows) {
       // On Windows, check file extension
       return filePath.toLowerCase().endsWith('.exe')
@@ -132,14 +184,14 @@ async function getExecutables (dir) {
   try {
     const files = await fs.readdir(dir)
     const executables = []
-    
+
     for (const file of files) {
       const filePath = path.join(dir, file)
       if (await isExecutable(filePath)) {
         executables.push(file)
       }
     }
-    
+
     return executables
   } catch (e) {
     return []
