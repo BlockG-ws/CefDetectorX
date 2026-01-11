@@ -164,6 +164,7 @@ if (platform.isWindows) {
 }
 
 // Search for Node.js native modules (Electron, Mini Blink, etc.)
+const cache3 = {}
 const nodePattern = platform.isWindows ? 'node.*\\.dll' : 'node.*\\.(so|dll)'
 for (const file of (await platform.searchFiles(nodePattern, true)).replace(/\r/g, '').split('\n')) {
   if (!file.trim()) continue
@@ -171,6 +172,8 @@ for (const file of (await platform.searchFiles(nodePattern, true)).replace(/\r/g
       file.includes('/.Trash') || file.includes('/.cache')) continue
   if (await fs.stat(file).then(it => it.isDirectory(), () => true)) continue
   const dir = path.dirname(file)
+  if (cache3[dir]) continue
+  cache3[dir] = true
   const executables = await platform.getExecutables(dir)
   for (const it of executables) {
     const fileName = path.join(dir, it)
