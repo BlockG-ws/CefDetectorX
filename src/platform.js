@@ -194,8 +194,8 @@ async function isExecutable (filePath) {
       // On Windows, check file extension
       return filePath.toLowerCase().endsWith('.exe')
     } else if (isLinux) {
-      // On Linux, check execute permission (0o111 = execute bit for owner, group, or other)
-      return (stats.mode & 0o111) !== 0
+      // On Linux, check execute permission or .exe extension (for Wine/cross-platform scenarios)
+      return (stats.mode & 0o111) !== 0 || filePath.toLowerCase().endsWith('.exe')
     }
   } catch (e) {
     return false

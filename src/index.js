@@ -159,16 +159,21 @@ if (platform.isWindows) {
 } else {
   // On Linux, search for libcef.so and its versioned variants (e.g., libcef.so.123)
   await searchCef(await platform.searchFiles('libcef.*\\.so', true), 'CEF')
+  // Also search for .dll files on Linux (for Wine or cross-platform scenarios)
+  await searchCef(await platform.searchFiles('libcef.*\\.dll', true), 'CEF')
 }
 
 // Search for Node.js native modules (Electron, Mini Blink, etc.)
-const nodePattern = platform.isWindows ? 'node(.*?)\\.dll' : 'node.*\\.so'
+const cache3 = {}
+const nodePattern = platform.isWindows ? 'node.*\\.dll' : 'node.*\\.(so|dll)'
 for (const file of (await platform.searchFiles(nodePattern, true)).replace(/\r/g, '').split('\n')) {
   if (!file.trim()) continue
   if (file.includes('$RECYCLE.BIN') || file.includes('OneDrive') ||
       file.includes('/.Trash') || file.includes('/.cache')) continue
   if (await fs.stat(file).then(it => it.isDirectory(), () => true)) continue
   const dir = path.dirname(file)
+  if (cache3[dir]) continue
+  cache3[dir] = true
   const executables = await platform.getExecutables(dir)
   for (const it of executables) {
     const fileName = path.join(dir, it)
